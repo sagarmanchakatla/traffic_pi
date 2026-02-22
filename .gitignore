@@ -1,0 +1,67 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+.pytest_cache/
+
+# =========================
+# Virtual environments
+# =========================
+venv/
+env/
+.venv/
+ENV/
+
+# =========================
+# ML / AI models & weights
+# =========================
+*.h5
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.pb
+*.tflite
+model.json
+model_weights.h5
+
+# =========================
+# YOLO models & outputs
+# =========================
+yolo*/
+runs/
+weights/
+*.weights
+
+# =========================
+# Data directories
+# =========================
+data/
+datasets/
+*.csv
+*.npy
+
+# =========================
+# Logs & temp files
+# =========================
+logs/
+*.log
+*.tmp
+
+# =========================
+# OS / Editor junk
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# =========================
+# Raspberry Pi / Linux
+# =========================
+*~
