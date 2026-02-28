@@ -1,67 +1,35 @@
-# =========================
-# Python
-# =========================
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-*.egg-info/
-.eggs/
-.pytest_cache/
+*$py.class
+**/*.pyc
 
-# =========================
-# Virtual environments
-# =========================
-venv/
-env/
-.venv/
-ENV/
-
-# =========================
-# ML / AI models & weights
-# =========================
-*.h5
+# AI Models & Weights
 *.pt
-*.pth
-*.ckpt
 *.onnx
-*.pb
-*.tflite
-model.json
-model_weights.h5
-
-# =========================
-# YOLO models & outputs
-# =========================
-yolo*/
-runs/
-weights/
+*.engine
 *.weights
+*.tflite
+runs/
 
-# =========================
-# Data directories
-# =========================
-data/
-datasets/
-*.csv
-*.npy
+# Environments
+.venv/
+venv/
+ENV/
+env/
+bin/
+lib/
+include/
 
-# =========================
-# Logs & temp files
-# =========================
-logs/
-*.log
-*.tmp
-
-# =========================
-# OS / Editor junk
-# =========================
-.DS_Store
-Thumbs.db
+# IDEs & System files
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
 
-# =========================
-# Raspberry Pi / Linux
-# =========================
-*~
+# Output & Logs
+outputs/
+*.log
+
+# Project specific
+test_video.mp4
