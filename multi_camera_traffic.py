@@ -5,11 +5,13 @@ import psutil
 from services.yolo.yolo_detector import YOLODetector
 from services.traffic.traffic_optimizer import TrafficTimingOptimizer
 from services.traffic.traffic_lights import TrafficLightService
+from services.accident_detection.accident_detection import AccidentDetection
 
 # ---------------- CONFIG ----------------
 FRAME_WIDTH = 416
 FRAME_HEIGHT = 416
-DETECTION_INTERVAL = 10
+# DETECTION_INTERVAL = 10
+DETECTION_RATE = 7
 TEMP_THRESHOLD = 75
 CPU_THRESHOLD = 80
 DISPLAY = False
@@ -46,8 +48,9 @@ class SystemMonitor:
         print(f"[SYS] {status} | Temp: {temp:.1f}°C | CPU: {cpu:.1f}% | RAM: {memory:.1f}%")
 
 class TrafficSignalController:
-    def __init__(self, detector, optimizer, cameras, lane_config, enable_lights=True):
+    def __init__(self, detector,accident_detector, optimizer, cameras, lane_config, enable_lights=True):
         self.detector = detector
+        self.accident_detector = accident_detector
         self.optimizer = optimizer
         self.cameras = cameras
         self.lane_config = lane_config
@@ -266,6 +269,28 @@ class TrafficSignalController:
         while self.is_running:
             current_time = time.time()
             
+            if frame_count % DETECTION_RATE == 0:
+                print(f"\n[ACCIDENT CHECK] Frame {frame_count}")
+
+                curr_snapshots = self.capture_snapshots()
+                
+                snapshot_bytes = {}
+                for lane, frame in curr_snapshots.items():
+                    _, img_bytes = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                    snapshot_bytes[lane] = img_bytes.tobytes()
+                    
+                accident_detections = self.accident_detector.detect_lanes(snapshot_bytes)
+                
+                for lane, result in accident_detections.items():
+                    if result == "ACCIDENT":
+                        print(f"  Accident detected on {lane.upper()}")
+                        if self.lights:
+                            self.lights.set_all_red()
+                        self.is_running = False
+                        break
+                    else:
+                        print("[INFO] No accidents detected")
+            
             # Periodic system stats
             if current_time - self.last_stats_time >= 30:
                 temp = SystemMonitor.get_cpu_temp()
@@ -389,7 +414,7 @@ class TrafficSignalController:
                         cv2.imshow(f"{lane}_live", display_frame)
             
             frame_count += 1
-            
+                        
             if DISPLAY and cv2.waitKey(100) & 0xFF == ord('q'):
                 print("\n[INFO] Exit requested")
                 self.is_running = False
@@ -450,6 +475,10 @@ def main():
     detector = YOLODetector("yolov8n.pt")
     print(f"[INFO] Model loaded in {time.time() - model_load_start:.2f}s\n")
     
+    print("\n[INFO] Loading Accident Detection Model...")
+    accident_detector = AccidentDetection()
+    print("[INFO] Accident Detection Model Loaded\n")
+    
     optimizer = TrafficTimingOptimizer()
     cameras = discover_cameras(MAX_CAMERA_INDEX)
     
@@ -460,7 +489,7 @@ def main():
     lane_config = {lane: {"hasLeft": False} for lane in cameras.keys()}
     
     controller = TrafficSignalController(
-        detector, optimizer, cameras, lane_config,
+        detector,accident_detector, optimizer, cameras, lane_config,
         enable_lights=ENABLE_PHYSICAL_LIGHTS
     )
     
