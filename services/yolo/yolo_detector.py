@@ -4,15 +4,22 @@ from ultralytics import YOLO
 from typing import List, Dict, Any
 import logging
 import base64
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+WEIGHT_PATH = "weights/yolov8n.pt"
+
 class YOLODetector:
-    def __init__(self, model_path="yolov8n.pt"):
+    def __init__(self):
         # Load the YOLOv8 model
         # It will download 'yolov8n.pt' automatically if not present
+        
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        model_path = os.path.join(base_dir, "weights", "yolov8n.pt")
+
         self.model = YOLO(model_path)
         self.class_names = self.model.names
         logger.info(f"Loaded YOLO model: {model_path}")

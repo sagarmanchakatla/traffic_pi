@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import logging
 from typing import Dict
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -13,7 +14,11 @@ TEST_IMG = "fig2.jpg"
 class AccidentDetection:
     def __init__(self):
         try:
-            self.model = YOLO(WEIGHT_PATH)
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            weight_path = os.path.join(base_dir, "weights", "epoch61.pt")
+
+            logger.info(f"Loading accident model from: {weight_path}")
+            self.model = YOLO(weight_path)
         except Exception as e:
             logger.error(f"Failed to load Model: {e}")
             

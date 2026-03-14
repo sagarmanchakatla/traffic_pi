@@ -6,6 +6,7 @@ from services.yolo.yolo_detector import YOLODetector
 from services.traffic.traffic_optimizer import TrafficTimingOptimizer
 from services.traffic.traffic_lights import TrafficLightService
 from services.accident_detection.accident_detection import AccidentDetection
+from services.system_monitor.system_monitor import SystemMonitor
 
 # ---------------- CONFIG ----------------
 FRAME_WIDTH = 416
@@ -20,32 +21,6 @@ ADAPTIVE_MODE = True
 ENABLE_PHYSICAL_LIGHTS = True  # ← Set False to disable LEDs
 # ---------------------------------------
 
-class SystemMonitor:
-    """Monitor Pi temperature and performance"""
-    
-    @staticmethod
-    def get_cpu_temp():
-        try:
-            result = subprocess.run(['vcgencmd', 'measure_temp'], 
-                                  capture_output=True, text=True, timeout=1)
-            temp_str = result.stdout.strip()
-            temp = float(temp_str.split('=')[1].split("'")[0])
-            return temp
-        except:
-            return 0.0
-    
-    @staticmethod
-    def get_cpu_usage():
-        return psutil.cpu_percent(interval=0.5)
-    
-    @staticmethod
-    def should_throttle(temp, cpu):
-        return temp > TEMP_THRESHOLD or cpu > CPU_THRESHOLD
-    
-    @staticmethod
-    def log_stats(temp, cpu, memory):
-        status = "⚠️  THROTTLING" if SystemMonitor.should_throttle(temp, cpu) else "✓ OK"
-        print(f"[SYS] {status} | Temp: {temp:.1f}°C | CPU: {cpu:.1f}% | RAM: {memory:.1f}%")
 
 class TrafficSignalController:
     def __init__(self, detector,accident_detector, optimizer, cameras, lane_config, enable_lights=True):
@@ -472,7 +447,7 @@ def main():
     
     print("[INFO] Loading YOLO model...")
     model_load_start = time.time()
-    detector = YOLODetector("yolov8n.pt")
+    detector = YOLODetector()
     print(f"[INFO] Model loaded in {time.time() - model_load_start:.2f}s\n")
     
     print("\n[INFO] Loading Accident Detection Model...")
