@@ -19,6 +19,7 @@ class AccidentDetection:
 
             logger.info(f"Loading accident model from: {weight_path}")
             self.model = YOLO(weight_path)
+            logger.info(f"Loading accident model complete")
         except Exception as e:
             logger.error(f"Failed to load Model: {e}")
             
