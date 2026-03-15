@@ -27,6 +27,6 @@ class SystemMonitor:
         return temp > TEMP_THRESHOLD or cpu > CPU_THRESHOLD
     
     @staticmethod
-    def log_stats(temp, cpu, memory):
+    def log_stats(temp, cpu, memory, process_name=""):
         status = "⚠️  THROTTLING" if SystemMonitor.should_throttle(temp, cpu) else "✓ OK"
-        print(f"[SYS] {status} | Temp: {temp:.1f}°C | CPU: {cpu:.1f}% | RAM: {memory:.1f}%")
+        print(f"[SYS] {process_name} | {status} | Temp: {temp:.1f}°C | CPU: {cpu:.1f}% | RAM: {memory:.1f}%")

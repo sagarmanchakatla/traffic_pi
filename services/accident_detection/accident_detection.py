@@ -66,6 +66,13 @@ class AccidentDetection:
         
 if __name__ == "__main__":
     detector = AccidentDetection()
+    
+    # Get the directory where THIS script is located
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Create the full path to the image
+    image_path = os.path.join(base_dir, TEST_IMG)
+    
     with open(TEST_IMG, "rb") as f:
         image_bytes = f.read()
     

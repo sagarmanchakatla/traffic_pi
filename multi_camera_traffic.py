@@ -7,19 +7,18 @@ from services.traffic.traffic_optimizer import TrafficTimingOptimizer
 from services.traffic.traffic_lights import TrafficLightService
 from services.accident_detection.accident_detection import AccidentDetection
 from services.system_monitor.system_monitor import SystemMonitor
+import threading
 
-# ---------------- CONFIG ----------------
 FRAME_WIDTH = 416
 FRAME_HEIGHT = 416
-# DETECTION_INTERVAL = 10
-DETECTION_RATE = 7
+ACCIDENT_INTERVAL = 30
+# DETECTION_RATE = 7
 TEMP_THRESHOLD = 75
 CPU_THRESHOLD = 80
 DISPLAY = False
 MAX_CAMERA_INDEX = 6
 ADAPTIVE_MODE = True
-ENABLE_PHYSICAL_LIGHTS = True  # ← Set False to disable LEDs
-# ---------------------------------------
+ENABLE_PHYSICAL_LIGHTS = True  
 
 
 class TrafficSignalController:
@@ -29,6 +28,12 @@ class TrafficSignalController:
         self.optimizer = optimizer
         self.cameras = cameras
         self.lane_config = lane_config
+        
+        self.accident_thread_running = False
+        self.accident_lock = threading.Lock()
+        self.last_accident_check = 0
+        self.accident_iteration = 0
+        self.last_accident_duration = 0
         
         # Initialize physical lights
         self.lights = None
@@ -122,6 +127,49 @@ class TrafficSignalController:
         
         return lane_counts, annotated_frames
     
+    def accident_detection_worker(self, snapshot_bytes):
+        with self.accident_lock:
+            if self.accident_thread_running:
+                print(f"Already accident running")
+                return
+            self.accident_thread_running = True
+
+        self.accident_iteration += 1
+        iteration = self.accident_iteration
+
+        start_time = time.time()
+
+        try:
+            print(f"\n[ACCIDENT DETECTION #{iteration}] Starting analysis...")
+            accident_detections = self.accident_detector.detect_lanes(snapshot_bytes)
+
+            duration = time.time() - start_time
+            self.last_accident_duration = duration
+            print(f"[ACCIDENT DETECTION #{iteration}] Completed in {duration:.2f}s")
+
+            accident_found = False
+            print("[ACCIDENT RESULTS]")
+
+            for lane, result in accident_detections.items():
+                print(f"  {lane.upper()} → {result}")
+                if result == "ACCIDENT":
+                    accident_found = True
+
+            if accident_found:
+                print("[ALERT] Accident detected! Setting ALL RED")
+                if self.lights:
+                    self.lights.set_all_red()
+                self.is_running = False
+            else:
+                print("[INFO] No accidents detected in any lane")
+
+        except Exception as e:
+            print(f"[ERROR] Accident detection failed: {e}")
+
+        finally:
+            self.accident_thread_running = False
+            
+        
     def calculate_new_cycle(self):
         print("\n" + "="*70)
         print("CALCULATING NEW CYCLE")
@@ -244,28 +292,35 @@ class TrafficSignalController:
         while self.is_running:
             current_time = time.time()
             
-            if frame_count % DETECTION_RATE == 0:
-                print(f"\n[ACCIDENT CHECK] Frame {frame_count}")
+            if current_time - self.last_accident_check >= ACCIDENT_INTERVAL:
+                self.last_accident_check = current_time
 
-                curr_snapshots = self.capture_snapshots()
+                self.accident_iteration += 0  # just to reference count
+
+                time_since_last = current_time - self.last_accident_check
+
+                print(
+                    f"\n[ACCIDENT CHECK] "
+                    f"Triggering detection | "
+                    f"Iteration: {self.accident_iteration + 1} | "
+                    f"Time since last: {time_since_last:.1f}s"
+                )
                 
+                curr_snapshots = self.capture_snapshots()
+
                 snapshot_bytes = {}
                 for lane, frame in curr_snapshots.items():
                     _, img_bytes = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
                     snapshot_bytes[lane] = img_bytes.tobytes()
-                    
-                accident_detections = self.accident_detector.detect_lanes(snapshot_bytes)
+
+                detection_thread = threading.Thread(
+                    target=self.accident_detection_worker,
+                    args=(snapshot_bytes,),
+                    daemon=True
+                )
+
+                detection_thread.start()
                 
-                for lane, result in accident_detections.items():
-                    if result == "ACCIDENT":
-                        print(f"  Accident detected on {lane.upper()}")
-                        if self.lights:
-                            self.lights.set_all_red()
-                        self.is_running = False
-                        break
-                    else:
-                        print("[INFO] No accidents detected")
-            
             # Periodic system stats
             if current_time - self.last_stats_time >= 30:
                 temp = SystemMonitor.get_cpu_temp()
@@ -360,7 +415,25 @@ class TrafficSignalController:
                             self.phase_start_time = time.time()
                         else:
                             # All phases complete - wait for cycle to finish
-                            print(f"[INFO] All phases complete, waiting for cycle end...")
+                            print(f"[INFO] All phases complete - recalculating immediately")
+
+                            self.calculate_new_cycle()
+
+                            if self.current_priority:
+                                first_lane = self.current_priority[0]
+                                timing = self.current_timings[first_lane]
+
+                                print(f"\n[PHASE 1/{len(self.current_priority)}] {first_lane.upper()}")
+                                print(f"  GREEN for {timing['green']}s")
+
+                                if self.lights:
+                                    self.lights.set_color(first_lane, 'green')
+
+                                self.current_green_lane = first_lane
+                                self.yellow_started = False
+                                self.phase_start_time = time.time()
+
+                            continue
                         
                         last_red_check = current_time
             
